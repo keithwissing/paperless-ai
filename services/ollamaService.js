@@ -540,6 +540,11 @@ class OllamaService {
      * @returns {Object} Ollama API response
      */
     async _callOllamaAPI(prompt, systemPrompt, numCtx, schema) {
+        const configuredResponseTokens = Number(config.responseTokens);
+        const numPredict = Number.isFinite(configuredResponseTokens) && configuredResponseTokens > 0
+            ? configuredResponseTokens
+            : 1000;
+
         const response = await this.client.post(`${this.apiUrl}/api/generate`, {
             model: this.model,
             prompt: prompt,
@@ -551,13 +556,17 @@ class OllamaService {
                 top_p: 0.9,
                 repeat_penalty: 1.1,
                 top_k: 7,
-                num_predict: 256,
+                num_predict: numPredict,
                 num_ctx: numCtx
             }
         });
 
         if (!response.data) {
             throw new Error('Invalid response from Ollama API');
+        }
+
+        if (response.data.done_reason === 'length') {
+            console.warn(`[WARN] Ollama response truncated by num_predict (${numPredict} tokens) before completion; increase RESPONSE_TOKENS if this recurs`);
         }
 
         return response.data;
