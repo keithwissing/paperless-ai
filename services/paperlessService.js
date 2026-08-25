@@ -1289,18 +1289,36 @@ async getOrCreateDocumentType(name) {
       let updateData;
       try {
         if (updates.created) {
-          let dateObject;
-          
-          dateObject = parseISO(updates.created);
-          
-          if (!isValid(dateObject)) {
-            dateObject = parse(updates.created, 'dd.MM.yyyy', new Date());
-            if (!isValid(dateObject)) {
-              dateObject = parse(updates.created, 'dd-MM-yyyy', new Date());
-            }
+          // Model-supplied dates often carry a trailing annotation, e.g.
+          // "1/7/26 (Report View Date)" or "Jun 11, 2025 (Latest Date)" -
+          // strip it before attempting to parse the date itself.
+          const cleanedDate = updates.created.replace(/\s*\([^)]*\)\s*$/, '').trim();
+
+          // A parsed date only counts if its year is plausible - date-fns's
+          // "yyyy" token will happily match a 1-2 digit number (e.g. "26"),
+          // so without this check "1/7/26" matches "yyyy/MM/dd" as year 1
+          // before ever reaching the format that would parse it correctly.
+          const isPlausible = (d) => isValid(d) && d.getFullYear() >= 1900 && d.getFullYear() <= new Date().getFullYear() + 1;
+
+          let dateObject = parseISO(cleanedDate);
+
+          const fallbackFormats = [
+            'dd.MM.yyyy',
+            'dd-MM-yyyy',
+            'yyyy/MM/dd',
+            'MM/dd/yyyy',
+            'M/d/yyyy',
+            'MM/dd/yy',
+            'M/d/yy',
+            'MMMM d, yyyy',
+            'MMM d, yyyy',
+          ];
+
+          for (let i = 0; !isPlausible(dateObject) && i < fallbackFormats.length; i++) {
+            dateObject = parse(cleanedDate, fallbackFormats[i], new Date());
           }
-          
-          if (!isValid(dateObject)) {
+
+          if (!isPlausible(dateObject)) {
             console.warn(`[WARN] Invalid date format: ${updates.created}, using fallback date: 01.01.1990`);
             dateObject = new Date(1990, 0, 1);
           }
