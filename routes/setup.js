@@ -1726,13 +1726,17 @@ async function buildUpdateData(analysis, doc) {
 
 async function saveDocumentChanges(docId, updateData, analysis, originalData) {
   const { tags: originalTags, correspondent: originalCorrespondent, title: originalTitle } = originalData;
-  
+
+  // updateDocument must succeed before we record the document as processed —
+  // otherwise a failed paperless-ngx write gets silently marked done and is
+  // never retried (see keithwissing/paperless-ai history for the incident).
+  await documentModel.saveOriginalData(docId, originalTags, originalCorrespondent, originalTitle);
+  await paperlessService.updateDocument(docId, updateData);
+
   await Promise.all([
-    documentModel.saveOriginalData(docId, originalTags, originalCorrespondent, originalTitle),
-    paperlessService.updateDocument(docId, updateData),
     documentModel.addProcessedDocument(docId, updateData.title),
     documentModel.addOpenAIMetrics(
-      docId, 
+      docId,
       analysis.metrics.promptTokens,
       analysis.metrics.completionTokens,
       analysis.metrics.totalTokens
