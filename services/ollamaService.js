@@ -551,6 +551,11 @@ class OllamaService {
             system: systemPrompt,
             stream: false,
             format: schema,
+            // Reasoning/"thinking" models (e.g. Qwen3) put the actual answer in a
+            // separate `thinking` field and leave `response` empty when thinking
+            // is left on, which we never read - explicitly disable it so the
+            // answer always lands in `response`. No-op for non-thinking models.
+            think: false,
             options: {
                 temperature: 0.7,
                 top_p: 0.9,
@@ -567,6 +572,13 @@ class OllamaService {
 
         if (response.data.done_reason === 'length') {
             console.warn(`[WARN] Ollama response truncated by num_predict (${numPredict} tokens) before completion; increase RESPONSE_TOKENS if this recurs`);
+        }
+
+        // Defensive fallback in case a model ignores `think: false` and still
+        // routes its answer through `thinking` instead of `response`.
+        if (!response.data.response && response.data.thinking) {
+            console.warn('[WARN] Model returned content in `thinking` instead of `response` despite think:false - using it as a fallback');
+            response.data.response = response.data.thinking;
         }
 
         return response.data;

@@ -1319,24 +1319,23 @@ async getOrCreateDocumentType(name) {
           }
 
           if (!isPlausible(dateObject)) {
-            console.warn(`[WARN] Invalid date format: ${updates.created}, using fallback date: 01.01.1990`);
-            dateObject = new Date(1990, 0, 1);
+            console.warn(`[WARN] Could not parse date "${updates.created}" - leaving document date unchanged`);
+            const { created, ...rest } = updates;
+            updateData = rest;
+          } else {
+            updateData = {
+              ...updates,
+              created: format(dateObject, 'yyyy-MM-dd'),
+            };
           }
-      
-          updateData = {
-            ...updates,
-            created: format(dateObject, 'yyyy-MM-dd'),
-          };
         } else {
           updateData = { ...updates };
         }
       } catch (error) {
         console.warn('[WARN] Error parsing date:', error.message);
         console.warn('[DEBUG] Received Date:', updates);
-        updateData = {
-          ...updates,
-          created: format(new Date(1990, 0, 1), 'yyyy-MM-dd'),
-        };
+        const { created, ...rest } = updates;
+        updateData = rest;
       }
 
       // // Handle custom fields update
