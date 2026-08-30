@@ -1,8 +1,7 @@
 name: Mark stale issues and pull requests
 
 on:
-  schedule:
-    - cron: "0 0 * * *" # Runs daily at midnight
+  workflow_dispatch: # disabled auto-run: needs secrets.stale_bot, which isn't set on this fork
 
 jobs:
   stale:
